@@ -1,0 +1,582 @@
+
+<html>
+<head>
+<title>Standing to The End</title>
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.4/jquery.min.js"></script>
+
+<script type="text/javascript" src="https://static.codehs.com/gulp/7704e11af234c5dd2ed23652f7511467b814f860/chs-js-lib/chs.js"></script>
+
+
+<style>
+canvas {
+    border: 1px solid black;
+    display: inline-block;
+    vertical-align: top;
+}
+
+pre {
+    border: 1px solid black;
+    display: inline-block;
+    width: 400px;
+    height: 500px;
+    background-color: #F5F5F5;
+}
+</style>
+
+</head>
+
+<body>
+<h1>Standing to The End</h1>
+
+<p>
+<button type="submit" onclick="refreshPage()">Click to restart the game</button>
+</p>
+
+<canvas
+width="400"
+height="500"
+class="codehs-editor-canvas"></canvas>
+<pre id="console"></pre>
+
+<script>
+
+function refreshPage(){
+    window.location.reload();
+}
+
+window.onload = function() {
+
+    /*Credits: 
+ *  jumping, smooth move, checktop, ground, horizontal, 
+ *  and trigonometry code are learning from Mr. Cohen's examples. 
+ *
+ *How to play: 
+ *  This is a very simple game. 
+ *  Player can use W, A and D to control the character(the green square) 
+ *  to complete jumping, moving left and right.
+ *  The goal of the game is trying to control the character 
+ *  to dodge the projectiles from the enemy(the red circle) 
+ *  and trying to survive as much time as you can. 
+ *  The projectile's moving speed will increase gradually by the time, 
+ *  so the game will become harder and harder as the time goes on. 
+ *  Do your best and have fun!!!
+ *Reflection from this project:
+ *  After completing the learning of Javascript in Codehs, I feel confident about creating my own game, but it is actually not as same as what I think. 
+ *  Through the process of creating the game, I had experienced gladness, but also sadness.
+ *  To begin with the gladness, I feel more cheerful to do the ending of the game and add some features to the game. 
+ *  The reason is these codes that I created brings me the sense of accomplishment, and I feel proud of myself. 
+ *  However, all these gladness come from thousands of times’ trying on some difficult parts, which makes me feel upset. 
+ *  The first challenge was the character’s jumping function. 
+ *  I have tried so many times and search many things from Google, but none of them works, so I go to ask Mr. Cohen, 
+ *  and he explains to me the main concept of jumping, which is keep changing the gravity and check the character is on ground or not. 
+ *  I follow his concept and use his examples about checking the surrounding of the character to solve this problem. 
+ *  Secondly, I get stuck on the rotation of the projectiles. 
+ *  I try to solve this problem by searching on the Google, and using the trigonometry codes by myself. Unfortunately, it doesn’t work. 
+ *  When I feel very hopeless about this part and consider to make the projectile move simply, I find out that there is an example on Mr. Cohen’s shooter example. 
+ *  Therefore, I figure out the right method to call trigonometry codes and complete the functions. 
+ *  From Mr. Cohen’s codes, I also learn that I can define a function inside a timer, instead of writing the code on a new line. 
+ *  So then I can call some local variables from original function in the timer function, which helps me a lot when there are more than one projectiles appear in the screen. 
+ *  Ultimately, I have learned lots of new things from creating the game, and I feel enjoyable when coding. 
+
+ *
+ *
+ */
+
+//all these are global variables. 
+var WIDTH = getWidth();
+var HEIGHT = getHeight();
+var character;
+var xdirection = 0;
+var xdir = 0;
+var vspeed = 0;
+var hspeed = 1.7;
+var jumpstrength = 7;
+var maxvspeed = 20;
+var gravity = 0.4;
+var ground = true;
+var enemy;
+var xrange;
+var enemydirection = 0;
+var enemyspeed = 1;
+var startposition;
+var activeposition;
+var moving = false;
+var gametime = 0;
+var lives = 3;
+var livetxt = new Text("", "10pt Arial");
+livetxt.setPosition(5, 25);
+livetxt.setColor(Color.black);
+add(livetxt);
+var difficulty = 1;
+var characterlive = 1;
+var difficulttxt = new Text("", "10pt Arial");
+difficulttxt.setPosition(90, 25);
+difficulttxt.setColor(Color.black);
+add(difficulttxt);
+var timetxt = new Text("", "10pt Arial");
+timetxt.setPosition(175, 25);
+timetxt.setColor(Color.black);
+add(timetxt);
+var button;
+var starttxt;
+
+function start(){
+    startbutton();
+}
+
+//the start stage of the game. 
+function startbutton(){
+    button = new Rectangle(150, 75);
+    button.setPosition(WIDTH / 2 - 75, HEIGHT / 2 - 37);
+    button.setColor(Color.grey);
+    add(button);
+    starttxt = new Text("Click", "30pt Arial");
+    starttxt.setPosition(WIDTH / 2 - 45, HEIGHT / 2 + 15);
+    starttxt.setColor(Color.purple);
+    add(starttxt);
+    mouseClickMethod(click);
+}
+
+//click to start the game. 
+function click(e){
+    var checkclick = getElementAt(e.getX(), e.getY());
+    if(checkclick != null && ((checkclick.getType() == "Rectangle"
+    && checkclick.getColor() == Color.grey) || (checkclick.getType() == "Text" 
+    && checkclick.getColor() == Color.purple))){
+        remove(button);
+        remove(starttxt);
+        continuing();
+    }
+}
+
+function continuing(){
+    terrain();
+    character();
+    enemy();
+    setting();
+}
+
+function terrain(){
+    drawblock(30, 10, 200, HEIGHT - 43, Color.black);
+    drawblock(30, 10, 231, HEIGHT - 43, Color.black);
+    drawblock(30, 10, 262, HEIGHT - 43, Color.black);
+    drawblock(30, 10, 293, HEIGHT - 43, Color.black);
+    drawblock(30, 10, 324, HEIGHT - 43, Color.black);
+    drawblock(30, 10, 200, HEIGHT - 32, Color.black);
+    drawblock(30, 10, 200, HEIGHT - 21, Color.black);
+    drawblock(30, 10, 200, HEIGHT - 10, Color.black);
+}
+
+function drawblock(width, height, x, y, color){
+    var block = new Rectangle(width, height);
+    block.setPosition(x, y);
+    block.setColor(color);
+    add(block);
+}
+
+function character(){
+    drawcharacter();
+    charactermove();
+    setTimer(characterlife, 1 / 60);
+}
+
+function drawcharacter(){
+    character = new Rectangle(25, 25);
+    character.setPosition(100, HEIGHT - 25);
+    character.setColor(Color.green);
+    character.lowestX = 0;
+    add(character);
+}
+
+function charactermove(){
+	keyDownMethod(startmove);
+	keyUpMethod(stopmove);
+    setTimer(step, 1 / 60);
+}
+
+//check character's bottom to complete the jump function. 
+function checkground(){
+    if (character.getY() >= HEIGHT - character.getHeight()){
+        character.setPosition(character.getX(), HEIGHT - character.getHeight());
+        return true;
+    }
+    var elementUnderLeft = getElementAt(character.getX(),
+    character.getY() + character.getHeight() + vspeed + 1);
+    var elementUnderRight = getElementAt(character.getX() + character.getWidth(),
+    character.getY() + character.getHeight() + vspeed + 1);
+    
+    if (elementUnderLeft == null && elementUnderRight == null){
+        return false;
+    } else {
+        if(elementUnderLeft != null){ 
+            if (elementUnderLeft.getType() == "Rectangle" 
+            && elementUnderLeft.getColor() == Color.black) {
+                character.setPosition(character.getX(),
+                elementUnderLeft.getY() - character.getHeight()); 
+                return true;
+            }
+        }
+        if (elementUnderRight != null){
+            if (elementUnderRight.getType() == "Rectangle" 
+            && elementUnderRight.getColor() == Color.black) {
+                character.setPosition(character.getX(), 
+                elementUnderRight.getY() - character.getHeight());
+                return true;
+            }
+        }
+    }
+    return false;
+    
+}
+
+//check character's left and right to prevent character across the wall. 
+function checkhorizontal(){
+    var xd = xdir;
+    var addWidth = 0;
+    if(xd == 1){
+        addWidth = character.getWidth();
+    }
+    var topBlock = getElementAt (character.getX() + (hspeed * xd) + 
+    addWidth, character.getY());
+    var midBlock = getElementAt (character.getX() + (hspeed * xd) + 
+    addWidth, character.getY() + character.getHeight()/2);
+    var bottomBlock = getElementAt (character.getX() + (hspeed * xd) + 
+    addWidth, character.getY() + character.getHeight()-1);
+    
+    if (topBlock != null && topBlock.getType() == "Rectangle" 
+    && topBlock.getColor() == Color.black){
+        xd = 0;
+    }else if (bottomBlock != null && bottomBlock.getType() == "Rectangle" 
+    && bottomBlock.getColor() == Color.black){
+        xd= 0;
+    }else if (midBlock != null && midBlock.getType() == "Rectangle" 
+    && midBlock.getColor() == Color.black){
+        xd = 0;
+    } 
+    return xd;
+}
+
+//check the top of the character to prevent the character across the wall. 
+function checktop(){
+    if (character.getY() <= 0){
+        character.setPosition(character.getX(),0);
+        return true;
+    }
+    var elementAboveLeft = getElementAt(character.getX(),
+    character.getY() + vspeed - 1);
+    var elementAboveRight = getElementAt(character.getX() + 
+    character.getWidth(), character.getY() + vspeed - 1);
+
+    if (elementAboveLeft == null && elementAboveRight == null){ 
+    } else { 
+        if(elementAboveLeft != null){ 
+            if (elementAboveLeft.getType() == "Rectangle" 
+            && elementAboveLeft.getColor() == Color.black) {
+                character.setPosition(character.getX(), 
+                elementAboveLeft.getY() + character.getHeight()); 
+                return true;
+            }
+        }
+        else if (elementAboveRight != null){
+                if (elementAboveRight.getType() == "Rectangle" 
+                && elementAboveRight.getColor() == Color.black) {
+                character.setPosition(character.getX(), 
+                elementAboveRight.getY() + character.getHeight());
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+//a time that controls character's move. 
+function step () {
+    if(character.getX() < 0){
+        character.setPosition(0, character.getY());
+    }
+    if(character.getX() + 25 > WIDTH){
+        character.setPosition(WIDTH - 25, character.getY());
+    }
+    ground = checkground();
+    if(!ground){
+        if (vspeed < maxvspeed){
+            vspeed += gravity;  
+        }
+    }else{
+        vspeed = 0;
+    }
+    xdirection = checkhorizontal();
+    if(vspeed < 0){
+        if(checktop()){
+            vspeed = 0;
+        }
+    }
+    character.move(hspeed * xdirection, vspeed);
+}
+
+//control the direction to make character move smoothly. 
+function startmove(e){
+	if(e.keyCode == Keyboard.letter('w')){
+	    if(ground){
+	        jump();
+	    }
+    }
+    if(e.keyCode == Keyboard.letter('A')){
+        xdir = -1;
+    }
+    if(e.keyCode == Keyboard.letter('D')){
+        xdir = 1;
+    }
+}
+
+//starting jumping.
+function jump(){
+    if(ground){
+        vspeed = -jumpstrength;
+        character.move(0, -1);
+    }
+}
+
+//stop character's moving.
+function stopmove(e){
+    if (e.keyCode == Keyboard.letter('A') && xdirection == -1){
+        xdir = 0;
+    }
+    if (e.keyCode == Keyboard.letter('D') && xdirection == 1){
+        xdir = 0;
+    }
+}
+
+//a lots of codes about checking the character is hit by the projectiles. 
+function characterlife(){
+    var leftcheckone = getElementAt(character.getX(), character.getY());
+    var leftchecktwo = getElementAt(character.getX(), character.getY() + 5);
+    var leftcheckthree = getElementAt(character.getX(), character.getY() + 10);
+    var leftcheckfour = getElementAt(character.getX(), character.getY() + 15);
+    var leftcheckfive = getElementAt(character.getX(), character.getY() + 20);
+    var leftchecksix = getElementAt(character.getX(), character.getY() + 25);
+    
+    var topcheckone = getElementAt(character.getX() + 5, character.getY());
+    var topchecktwo = getElementAt(character.getX() + 10, character.getY());
+    var topcheckthree = getElementAt(character.getX() + 15, character.getY());
+    var topcheckfour = getElementAt(character.getX() + 20, character.getY());
+    
+    var rightcheckone = getElementAt(character.getX() + 25, character.getY());
+    var rightchecktwo = getElementAt(character.getX() + 25, character.getY() + 5);
+    var rightcheckthree = getElementAt(character.getX() + 25, character.getY() + 10);
+    var rightcheckfour = getElementAt(character.getX() + 25, character.getY() + 15);
+    var rightcheckfive = getElementAt(character.getX() + 25, character.getY() + 20);
+    var rightchecksix = getElementAt(character.getX() + 25, character.getY() + 25);
+    
+    if (leftcheckone != null && leftcheckone.getType() == "Rectangle" 
+    && leftcheckone.getColor() == Color.blue){
+        lives -= 1;
+        remove(leftcheckone);
+    }else if (leftchecktwo != null && leftchecktwo.getType() == "Rectangle" 
+    && leftchecktwo.getColor() == Color.blue){
+        lives -= 1;
+        remove(leftchecktwo);
+    }else if (leftcheckthree != null && leftcheckthree.getType() == "Rectangle" 
+    && leftcheckthree.getColor() == Color.blue){
+        lives -= 1;
+        remove(leftcheckthree);
+    }else if (leftcheckfour != null && leftcheckfour.getType() == "Rectangle" 
+    && leftcheckfour.getColor() == Color.blue){
+        lives -= 1;
+        remove(leftcheckfour);
+    }else if (leftcheckfive != null && leftcheckfive.getType() == "Rectangle" 
+    && leftcheckfive.getColor() == Color.blue){
+        lives -= 1;
+        remove(leftcheckfive);
+    }else if (leftchecksix != null && leftchecksix.getType() == "Rectangle" 
+    && leftchecksix.getColor() == Color.blue){
+        lives -= 1;
+        remove(leftchecksix);
+    }else 
+    
+    if (topcheckone != null && topcheckone.getType() == "Rectangle" 
+    && topcheckone.getColor() == Color.blue){
+        lives -= 1;
+        remove(topcheckone);
+    }else if (topchecktwo != null && topchecktwo.getType() == "Rectangle" 
+    && topchecktwo.getColor() == Color.blue){
+        lives -= 1;
+        remove(topchecktwo);
+    }else if (topcheckthree != null && topcheckthree.getType() == "Rectangle" 
+    && topcheckthree.getColor() == Color.blue){
+        lives -= 1;
+        remove(topcheckthree);
+    }else if (topcheckfour != null && topcheckfour.getType() == "Rectangle" 
+    && topcheckfour.getColor() == Color.blue){
+        lives -= 1;
+        remove(topcheckfour);
+    }else 
+    
+    if (rightcheckone != null && rightcheckone.getType() == "Rectangle" 
+    && rightcheckone.getColor() == Color.blue){
+        lives -= 1;
+        remove(rightcheckone);
+    }else if (rightchecktwo != null && rightchecktwo.getType() == "Rectangle" 
+    && rightchecktwo.getColor() == Color.blue){
+        lives -= 1;
+        remove(rightchecktwo);
+    }else if (rightcheckthree != null && rightcheckthree.getType() == "Rectangle" 
+    && rightcheckthree.getColor() == Color.blue){
+        lives -= 1;
+        remove(rightcheckthree);
+    }else if (rightcheckfour != null && rightcheckfour.getType() == "Rectangle" 
+    && rightcheckfour.getColor() == Color.blue){
+        lives -= 1;
+        remove(rightcheckfour);
+    }else if (rightcheckfive != null && rightcheckfive.getType() == "Rectangle" 
+    && rightcheckfive.getColor() == Color.blue){
+        lives -= 1;
+        remove(rightcheckfive);
+    }else if (rightchecksix != null && rightchecksix.getType() == "Rectangle" 
+    && rightchecksix.getColor() == Color.blue){
+        lives -= 1;
+        remove(rightchecksix);
+    }
+}
+
+function enemy(){
+    drawenemy();
+    setTimer(enemymove, 1 / 60);
+    enemyattack();
+}
+
+function drawenemy(){
+    enemy = new Circle(20);
+    enemy.setPosition(100, 50);
+    enemy.setColor(Color.red);
+    add(enemy);
+}
+
+//set a random destination for the red circle(enemy).
+function enemydestination(){
+    if(!moving){
+        xrange = Randomizer.nextInt(20, 380);
+        startposition = enemy.getX();
+        if(startposition < xrange){
+            enemydirection = 1;
+        } else if(startposition > xrange){
+            enemydirection = -1;
+        }
+    }
+}
+
+//the moving function of the red circle(enemy).
+function enemymove(){
+    activeposition = enemy.getX();
+    if((activeposition < xrange || activeposition > xrange) 
+    && enemydirection != 0){
+        moving = true;
+    }else{
+        moving = false;
+    }
+    enemydestination();
+    enemy.move(enemyspeed * enemydirection, 0);
+    if(activeposition == xrange){
+        enemydirection = 0;
+    }
+}
+
+function enemyattack(){
+    setTimer(shoot, 2000);
+}
+
+//the projectiles function, it creats projectile each two seconds.
+function shoot(){
+    var bullet = new Rectangle(20, 10);
+    bullet.setColor(Color.yellow);
+    bullet.setPosition(enemy.getX() - 5, enemy.getY());
+    bullet.setColor(Color.blue);
+    add(bullet);
+    turnTowards (bullet, character.getX(), character.getY());
+    setTimer(function (){
+        moveForward(bullet, 1);
+        if(bullet.getX() < 0 || bullet.getX() > getWidth() 
+        || bullet.getY() > getHeight()){
+        remove(bullet);
+        stopTimer(this);
+        }
+        if(characterlive < 1){
+            bullet.setColor(Color.white);
+            remove(bullet);
+        }
+    }, 1 / 60);
+}
+
+//the trigonometry codes
+function turnTowards (shape, faceX, faceY){
+    var angle = Math.atan2(shape.getY() - faceY, shape.getX() - faceX);
+    shape.setRotation(angle - Math.PI, 1);
+}
+
+//the moving of the projectiles.
+function moveForward (theShape, distance){
+    var angle = theShape.rotation;
+    var yMove = distance * Math.sin(angle);
+    var xMove = distance * Math.cos(angle);
+    theShape.move(xMove * difficulty, yMove * difficulty);
+}
+
+function setting(){
+    setTimer(time, 1000);
+    setTimer(ending, 1 / 60);
+}
+
+//changing the time.
+function time(){
+    gametime += 1;
+}
+
+//changing the texts that shows on the top of the screen. 
+function changetext(){
+    difficulty = 1 + (gametime / 5) * 1;
+    livetxt.setText("lives : " + lives);
+    difficulttxt.setText("Difficulty : " + Math.round(difficulty));
+    timetxt.setText("Time : " + gametime);
+}
+
+//text son the last screen.
+function endtxt(){
+    var endingtxtone = new Text("Game Over!", "40pt Arial");
+    endingtxtone.setPosition(WIDTH / 2 - 150, HEIGHT / 2 - 50);
+    endingtxtone.setColor(Color.red);
+    add(endingtxtone);
+    var endingtxttwo = new Text("Your time: " + gametime + "s", "20pt Arial");
+    endingtxttwo.setPosition(WIDTH / 2 - 90, HEIGHT / 2);
+    endingtxttwo.setColor(Color.blue);
+    add(endingtxttwo);
+}
+
+//this is the ending of the game, remove some useless things, and show the final time.
+function ending(){
+    difficulty = 1 + (gametime / 5) * 1;
+    livetxt.setText("lives : " + lives);
+    difficulttxt.setText("Difficulty : " + Math.round(difficulty));
+    timetxt.setText("Time : " + gametime);
+    if(lives == 0){
+        remove(character);
+        remove(enemy);
+        characterlive -= 1;
+        remove(livetxt);
+        remove(difficulttxt);
+        remove(timetxt);
+        stopTimer(time);
+        stopTimer(ending);
+        endtxt();
+    }
+}
+
+
+    if (typeof start === 'function') {
+        start();
+    }
+};
+</script>
+
+</body>
+</html>
